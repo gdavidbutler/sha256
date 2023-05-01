@@ -8,6 +8,6 @@ If your compiler does not implement "unsigned int" as 32 bits, change "unsigned 
 
 Included is an example driver program, main.c, that reads standard input till end-of-file and writes on standard output a hex representation of the hash.
 
-Also included is a driver program, shaby.c, to use NIST [test vectors|https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/shs/shabytetestvectors.zip] to validate the implementation.
+Also included is a driver program, shaby.c, to use NIST [test vectors](https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/shs/shabytetestvectors.zip) to validate the implementation.
 Download the ZIP file and expand it in the test directory.
 Then type "make check" to validate the SHA256 vectors.
