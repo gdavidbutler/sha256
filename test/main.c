@@ -11,7 +11,7 @@ main(
   unsigned char h[32];
   unsigned char b[64];
 
-  if (!(c = sha256alloc((void *(*)(unsigned int))malloc)))
+  if (!(c = malloc(sha256tsize())))
     return (1);
   sha256init(c);
   while ((i = fread(b, 1, sizeof (b), stdin)) == sizeof (b))

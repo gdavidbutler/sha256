@@ -24,15 +24,15 @@ typedef unsigned int sha256_bt;
 struct sha256 {
  sha256_bt s[8];       /* unsigned 32 bits */
  unsigned char d[64];  /* short data */
- unsigned long b;      /* bits processed */
+ unsigned long b;      /* bytes processed */
  unsigned int l;       /* current short data */
 };
 
-sha256_t *
-sha256alloc(
-  void*(*a)(unsigned int)
+unsigned int
+sha256tsize(
+  void
 ){
-  return (a(sizeof (sha256_t)));
+  return (sizeof (sha256_t));
 }
 
 void
@@ -112,6 +112,7 @@ E1(
 ){
   return (((RR(x, 17)) ^ (RR(x, 19)) ^ (x >> 10)));
 }
+
 #else
 
 #define RR(x,y) ((x >> y) | (x << (sizeof (x) * 8 - y)))
@@ -143,7 +144,6 @@ sha256mix(
   sha256_bt t[8];
   unsigned int i;
 
-
   for (i = 0; i < 16; ++i, d += 4)
     w[i] = *(d + 0) << (3 * 8)
          | *(d + 1) << (2 * 8)
@@ -151,7 +151,6 @@ sha256mix(
          | *(d + 3) << (0 * 8);
   for (; i < 64; ++i)
     w[i] = E1(w[i - 2]) + w[i - 7] + E0(w[i - 15]) + w[i - 16];
-
 
 #if SHA256_SPACETIME == 1 || SHA256_SPACETIME == 2 /* straight out of FIPS PUB 180-4 */
 
@@ -366,7 +365,7 @@ sha256update(
       *s = *d;
     if (i == 64) {
       sha256mix(v->s, v->d);
-      v->b += 64 * 8;
+      v->b += 64;
       v->l = 0;
     } else {
       v->l = i;
@@ -375,7 +374,7 @@ sha256update(
   }
   for (; l >= 64; l -= 64, d += 64) {
     sha256mix(v->s, d);
-    v->b += 64 * 8;
+    v->b += 64;
   }
   if (l) {
     v->l = l;
@@ -393,7 +392,7 @@ sha256final(
   unsigned int i;
 
   if ((i = v->l))
-    v->b += i * 8;
+    v->b += i;
   s = v->d + i++;
   *s++ = 0x80;
   if (i > 64 - 8) {
@@ -405,14 +404,15 @@ sha256final(
   }
   for (; i < 64 - 8; ++i, ++s)
     *s = 0x00;
-  *s++ = v->b >> (7 * 8);
-  *s++ = v->b >> (6 * 8);
-  *s++ = v->b >> (5 * 8);
-  *s++ = v->b >> (4 * 8);
-  *s++ = v->b >> (3 * 8);
-  *s++ = v->b >> (2 * 8);
-  *s++ = v->b >> (1 * 8);
-  *s   = v->b >> (0 * 8);
+  /* convert bytes to bits * 8=2^3 */
+  *s++ = v->b >> (7 * 8 - 3);
+  *s++ = v->b >> (6 * 8 - 3);
+  *s++ = v->b >> (5 * 8 - 3);
+  *s++ = v->b >> (4 * 8 - 3);
+  *s++ = v->b >> (3 * 8 - 3);
+  *s++ = v->b >> (2 * 8 - 3);
+  *s++ = v->b >> (1 * 8 - 3);
+  *s   = v->b << 3;
   sha256mix(v->s, v->d);
   for (i = 0; i < 8; ++i) {
     *h++ = v->s[i] >> (3 * 8);

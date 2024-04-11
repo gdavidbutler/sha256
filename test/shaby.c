@@ -31,7 +31,7 @@ main(
   sha256_t *s;
   unsigned int l;
 
-  if (!(s = sha256alloc((void *(*)(unsigned int))malloc))
+  if (!(s = malloc(sha256tsize()))
    || !(b = malloc(16384)))
     return (1);
   l = 0;
