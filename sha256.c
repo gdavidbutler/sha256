@@ -23,9 +23,10 @@
 typedef unsigned int sha256_bt;
 struct sha256 {
  sha256_bt s[8];       /* unsigned 32 bits */
- unsigned char d[64];  /* short data */
- unsigned long b;      /* bytes processed */
+ sha256_bt bh;         /* bytes processed high */
+ sha256_bt bl;         /* bytes processed low */
  unsigned int l;       /* current short data */
+ unsigned char d[64];  /* short data */
 };
 
 unsigned int
@@ -47,7 +48,7 @@ sha256init(
   v->s[5] = 0x9b05688cU;
   v->s[6] = 0x1f83d9abU;
   v->s[7] = 0x5be0cd19U;
-  v->b = 0;
+  v->bh = v->bl = 0;
   v->l = 0;
 }
 
@@ -365,7 +366,8 @@ sha256update(
       *s = *d;
     if (i == 64) {
       sha256mix(v->s, v->d);
-      v->b += 64;
+      if ((v->bl += 64) < 64)
+        ++v->bh;
       v->l = 0;
     } else {
       v->l = i;
@@ -374,7 +376,8 @@ sha256update(
   }
   for (; l >= 64; l -= 64, d += 64) {
     sha256mix(v->s, d);
-    v->b += 64;
+    if ((v->bl += 64) < 64)
+      ++v->bh;
   }
   if (l) {
     v->l = l;
@@ -392,7 +395,8 @@ sha256final(
   unsigned int i;
 
   if ((i = v->l))
-    v->b += i;
+    if ((v->bl += i) < i)
+      ++v->bh;
   s = v->d + i++;
   *s++ = 0x80;
   if (i > 64 - 8) {
@@ -405,14 +409,14 @@ sha256final(
   for (; i < 64 - 8; ++i, ++s)
     *s = 0x00;
   /* convert bytes to bits * 8=2^3 */
-  *s++ = v->b >> (7 * 8 - 3);
-  *s++ = v->b >> (6 * 8 - 3);
-  *s++ = v->b >> (5 * 8 - 3);
-  *s++ = v->b >> (4 * 8 - 3);
-  *s++ = v->b >> (3 * 8 - 3);
-  *s++ = v->b >> (2 * 8 - 3);
-  *s++ = v->b >> (1 * 8 - 3);
-  *s   = v->b << 3;
+  *s++ = v->bh >> (3 * 8 - 3);
+  *s++ = v->bh >> (2 * 8 - 3);
+  *s++ = v->bh >> (1 * 8 - 3);
+  *s++ = v->bh << 3;
+  *s++ = v->bl >> (3 * 8 - 3);
+  *s++ = v->bl >> (2 * 8 - 3);
+  *s++ = v->bl >> (1 * 8 - 3);
+  *s   = v->bl << 3;
   sha256mix(v->s, v->d);
   for (i = 0; i < 8; ++i) {
     *h++ = v->s[i] >> (3 * 8);
