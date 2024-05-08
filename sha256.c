@@ -129,9 +129,9 @@ E1(
 static void
 sha256mix(
   sha256_bt s[]
- ,unsigned char *d
+ ,const unsigned char *d
 ){
-  static sha256_bt k[] = {
+  static const sha256_bt k[] = {
     0x428a2f98U,0x71374491U,0xb5c0fbcfU,0xe9b5dba5U,0x3956c25bU,0x59f111f1U,0x923f82a4U,0xab1c5ed5U
    ,0xd807aa98U,0x12835b01U,0x243185beU,0x550c7dc3U,0x72be5d74U,0x80deb1feU,0x9bdc06a7U,0xc19bf174U
    ,0xe49b69c1U,0xefbe4786U,0x0fc19dc6U,0x240ca1ccU,0x2de92c6fU,0x4a7484aaU,0x5cb0a9dcU,0x76f988daU
@@ -354,7 +354,7 @@ sha256mix(
 void
 sha256update(
   sha256_t *v
- ,unsigned char *d
+ ,const unsigned char *d
  ,unsigned int l
 ){
   unsigned char *s;
@@ -428,13 +428,13 @@ sha256final(
 
 void
 sha256hex(
-  unsigned char *h
+  const unsigned char *h
  ,char *o
 ){
   unsigned int i;
 
   for (i = 0; i < 32; ++i, ++h) {
-    static char m[] = "0123456789abcdef";
+    static const char m[] = "0123456789abcdef";
 
     *o++ = m[(*h >> 4) & 0xf];
     *o++ = m[(*h >> 0) & 0xf];
