@@ -19,7 +19,7 @@
  */
 
 typedef struct sha256 sha256_t;
-unsigned int sha256tsize();
+unsigned int sha256tsize(void);
 void sha256init(sha256_t *);
 void sha256update(sha256_t *, const unsigned char *, unsigned int);
 void sha256final(sha256_t *, unsigned char *); /* 32 unsigned char (256 bits) */
