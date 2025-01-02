@@ -23,4 +23,5 @@ unsigned int sha256tsize(void);
 void sha256init(sha256_t *);
 void sha256update(sha256_t *, const unsigned char *, unsigned int);
 void sha256final(sha256_t *, unsigned char *); /* 32 unsigned char (256 bits) */
+void sha256hmac(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *h); /* 32 unsigned char (256 bits) */
 void sha256hex(const unsigned char *, char *); /* 32 unsigned char (256 bits), 64 char (not null-terminated) */

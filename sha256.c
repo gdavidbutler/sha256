@@ -427,6 +427,40 @@ sha256final(
 }
 
 void
+sha256hmac(
+  const unsigned char *k
+ ,unsigned int kl
+ ,const unsigned char *d
+ ,unsigned int dl
+ ,unsigned char *h
+){
+  sha256_t c;
+  unsigned char i[64];
+  unsigned char o[64];
+  unsigned int l;
+
+  if (kl > 64) {
+    sha256init(&c);
+    sha256update(&c, k, kl);
+    sha256final(&c, h);
+    k = h;
+    kl = 32;
+  }
+  for (l = 0; l < sizeof (i); ++l)
+    i[l] = (l < kl ? *(k + l) : 0x00) ^ 0x36;
+  for (l = 0; l < sizeof (o); ++l)
+    o[l] = (l < kl ? *(k + l) : 0x00) ^ 0x5c;
+  sha256init(&c);
+  sha256update(&c, i, sizeof (i));
+  sha256update(&c, d, dl);
+  sha256final(&c, h);
+  sha256init(&c);
+  sha256update(&c, o, sizeof (o));
+  sha256update(&c, h, 32);
+  sha256final(&c, h);
+}
+
+void
 sha256hex(
   const unsigned char *h
  ,char *o
