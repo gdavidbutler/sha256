@@ -18,8 +18,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef __SHA256_H__
-#define __SHA256_H__
+#ifndef SHA256_H
+#define SHA256_H
 
 typedef struct sha256 sha256_t;
 unsigned int sha256tsize(void);
@@ -29,4 +29,4 @@ void sha256final(sha256_t *, unsigned char *); /* 32 unsigned char (256 bits) */
 void sha256hmac(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *h); /* 32 unsigned char (256 bits) */
 void sha256hex(const unsigned char *, char *); /* 32 unsigned char (256 bits), 64 char (not null-terminated) */
 
-#endif /* __SHA256_H__ */
+#endif /* SHA256_H */

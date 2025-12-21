@@ -116,13 +116,13 @@ E1(
 
 #else
 
-#define RR(x,y) ((x >> y) | (x << (sizeof (x) * 8 - y)))
-#define CH(x,y,z) ((x & (y ^ z)) ^ z)
-#define MJ(x,y,z) ((x & (y | z)) | (y & z))
-#define S0(x) ((RR(x,  2)) ^ (RR(x, 13)) ^ (RR(x, 22)))
-#define S1(x) ((RR(x,  6)) ^ (RR(x, 11)) ^ (RR(x, 25)))
-#define E0(x) ((RR(x,  7)) ^ (RR(x, 18)) ^ (x >>  3))
-#define E1(x) ((RR(x, 17)) ^ (RR(x, 19)) ^ (x >> 10))
+#define RR(x,y) (((x) >> (y)) | ((x) << (sizeof (x) * 8 - (y))))
+#define CH(x,y,z) (((x) & ((y) ^ (z))) ^ (z))
+#define MJ(x,y,z) (((x) & ((y) | (z))) | ((y) & (z)))
+#define S0(x) ((RR((x),  2)) ^ (RR((x), 13)) ^ (RR((x), 22)))
+#define S1(x) ((RR((x),  6)) ^ (RR((x), 11)) ^ (RR((x), 25)))
+#define E0(x) ((RR((x),  7)) ^ (RR((x), 18)) ^ ((x) >>  3))
+#define E1(x) ((RR((x), 17)) ^ (RR((x), 19)) ^ ((x) >> 10))
 
 #endif
 
@@ -146,10 +146,10 @@ sha256mix(
   unsigned int i;
 
   for (i = 0; i < 16; ++i, d += 4)
-    w[i] = *(d + 0) << (3 * 8)
-         | *(d + 1) << (2 * 8)
-         | *(d + 2) << (1 * 8)
-         | *(d + 3) << (0 * 8);
+    w[i] = (sha256_bt)*(d + 0) << (3 * 8)
+         | (sha256_bt)*(d + 1) << (2 * 8)
+         | (sha256_bt)*(d + 2) << (1 * 8)
+         | (sha256_bt)*(d + 3) << (0 * 8);
   for (; i < 64; ++i)
     w[i] = E1(w[i - 2]) + w[i - 7] + E0(w[i - 15]) + w[i - 16];
 
@@ -412,7 +412,7 @@ sha256final(
   *s++ = v->bh >> (3 * 8 - 3);
   *s++ = v->bh >> (2 * 8 - 3);
   *s++ = v->bh >> (1 * 8 - 3);
-  *s++ = v->bh << 3;
+  *s++ = (v->bh << 3) | (v->bl >> (4 * 8 - 3));
   *s++ = v->bl >> (3 * 8 - 3);
   *s++ = v->bl >> (2 * 8 - 3);
   *s++ = v->bl >> (1 * 8 - 3);
