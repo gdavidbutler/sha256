@@ -444,7 +444,7 @@ sha256hmac(
     sha256update(&c, k, kl);
     sha256final(&c, h);
     k = h;
-    kl = 32;
+    kl = SHA256_SZ;
   }
   for (l = 0; l < kl; ++l) {
     i[l] = *(k + l) ^ 0x36;
@@ -460,7 +460,7 @@ sha256hmac(
   sha256final(&c, h);
   sha256init(&c);
   sha256update(&c, o, sizeof (o));
-  sha256update(&c, h, 32);
+  sha256update(&c, h, SHA256_SZ);
   sha256final(&c, h);
 }
 
@@ -471,7 +471,7 @@ sha256hex(
 ){
   unsigned int i;
 
-  for (i = 0; i < 32; ++i, ++h) {
+  for (i = 0; i < SHA256_SZ; ++i, ++h) {
     static const char m[] = "0123456789abcdef";
 
     *o++ = m[(*h >> 4) & 0xf];
