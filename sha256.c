@@ -462,6 +462,21 @@ sha256hmac(
   sha256update(&c, o, sizeof (o));
   sha256update(&c, h, SHA256_SZ);
   sha256final(&c, h);
+  /* wipe stack residue; volatile defeats dead-store elimination */
+  {
+    volatile unsigned char *p;
+    unsigned int n;
+
+    p = (volatile unsigned char *)&c;
+    for (n = 0; n < sizeof (c); ++n)
+      *p++ = 0;
+    p = (volatile unsigned char *)i;
+    for (n = 0; n < sizeof (i); ++n)
+      *p++ = 0;
+    p = (volatile unsigned char *)o;
+    for (n = 0; n < sizeof (o); ++n)
+      *p++ = 0;
+  }
 }
 
 void

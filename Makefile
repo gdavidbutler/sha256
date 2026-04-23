@@ -1,4 +1,4 @@
-CFLAGS=-I. -Os
+CFLAGS=-I. -Os -g
 
 all: sha256
 

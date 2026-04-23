@@ -43,12 +43,15 @@ main(
 
     switch (*b) {
 
-    case 'L': /* Len = */
-      if ((l = atoi((char *)b + 6)) < 0)
+    case 'L': { /* Len = */
+      int n;
+
+      if ((n = atoi((char *)b + 6)) < 0)
         l = 0;
       else
-        l /= 8; /* 8 bits per byte */
+        l = n / 8; /* 8 bits per byte */
       break;
+    }
 
     case 'M':
       switch (*(b + 1)) {
