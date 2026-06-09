@@ -480,6 +480,82 @@ sha256hmac(
 }
 
 void
+sha256hkdf(
+  const unsigned char *k
+ ,unsigned int kl
+ ,const unsigned char *d
+ ,unsigned int dl
+ ,unsigned char *s
+ ,unsigned int sl
+){
+  sha256_t c;
+  unsigned char i[64];
+  unsigned char o[64];
+  unsigned char t[SHA256_SZ];
+  unsigned char t2[SHA256_SZ];
+  unsigned int l;
+  unsigned int n;
+
+  if (sl > 255 * SHA256_SZ)
+    sl = 255 * SHA256_SZ;
+  if (kl > 64) {
+    sha256init(&c);
+    sha256update(&c, k, kl);
+    sha256final(&c, t);
+    k = t;
+    kl = SHA256_SZ;
+  }
+  for (l = 0; l < kl; ++l) {
+    i[l] = *(k + l) ^ 0x36;
+    o[l] = *(k + l) ^ 0x5c;
+  }
+  for (; l < 64; ++l) {
+    i[l] = 0x00 ^ 0x36;
+    o[l] = 0x00 ^ 0x5c;
+  }
+  for (n = 0, l = 0; l < sl;) {
+    unsigned char b;
+    unsigned int j;
+
+    b = (unsigned char)++n;
+    sha256init(&c);
+    sha256update(&c, i, sizeof (i));
+    if (n > 1)
+      sha256update(&c, t, SHA256_SZ);
+    sha256update(&c, d, dl);
+    sha256update(&c, &b, 1);
+    sha256final(&c, t2);
+    sha256init(&c);
+    sha256update(&c, o, sizeof (o));
+    sha256update(&c, t2, SHA256_SZ);
+    sha256final(&c, t);
+    for (j = 0; j < SHA256_SZ && l < sl; ++j, ++l)
+      s[l] = t[j];
+  }
+  /* wipe stack residue once; volatile defeats dead-store elimination */
+  {
+    volatile unsigned char *p;
+    unsigned int m;
+
+    p = (volatile unsigned char *)&c;
+    for (m = 0; m < sizeof (c); ++m)
+      *p++ = 0;
+    p = (volatile unsigned char *)i;
+    for (m = 0; m < sizeof (i); ++m)
+      *p++ = 0;
+    p = (volatile unsigned char *)o;
+    for (m = 0; m < sizeof (o); ++m)
+      *p++ = 0;
+    p = (volatile unsigned char *)t;
+    for (m = 0; m < sizeof (t); ++m)
+      *p++ = 0;
+    p = (volatile unsigned char *)t2;
+    for (m = 0; m < sizeof (t2); ++m)
+      *p++ = 0;
+  }
+}
+
+void
 sha256hex(
   const unsigned char *h
  ,char *o

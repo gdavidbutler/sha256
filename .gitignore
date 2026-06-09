@@ -54,3 +54,4 @@ dkms.conf
 # Local Executables
 sha256
 shaby
+hkdf
