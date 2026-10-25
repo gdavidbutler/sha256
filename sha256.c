@@ -489,6 +489,8 @@ sha256hkdf(
  ,unsigned int sl
 ){
   sha256_t c;
+  sha256_t ci;
+  sha256_t co;
   unsigned char i[64];
   unsigned char o[64];
   unsigned char t[SHA256_SZ];
@@ -513,20 +515,22 @@ sha256hkdf(
     i[l] = 0x00 ^ 0x36;
     o[l] = 0x00 ^ 0x5c;
   }
+  sha256init(&ci);
+  sha256update(&ci, i, sizeof (i));
+  sha256init(&co);
+  sha256update(&co, o, sizeof (o));
   for (n = 0, l = 0; l < sl;) {
     unsigned char b;
     unsigned int j;
 
     b = (unsigned char)++n;
-    sha256init(&c);
-    sha256update(&c, i, sizeof (i));
+    c = ci;
     if (n > 1)
       sha256update(&c, t, SHA256_SZ);
     sha256update(&c, d, dl);
     sha256update(&c, &b, 1);
     sha256final(&c, t2);
-    sha256init(&c);
-    sha256update(&c, o, sizeof (o));
+    c = co;
     sha256update(&c, t2, SHA256_SZ);
     sha256final(&c, t);
     for (j = 0; j < SHA256_SZ && l < sl; ++j, ++l)
@@ -539,6 +543,12 @@ sha256hkdf(
 
     p = (volatile unsigned char *)&c;
     for (m = 0; m < sizeof (c); ++m)
+      *p++ = 0;
+    p = (volatile unsigned char *)&ci;
+    for (m = 0; m < sizeof (ci); ++m)
+      *p++ = 0;
+    p = (volatile unsigned char *)&co;
+    for (m = 0; m < sizeof (co); ++m)
       *p++ = 0;
     p = (volatile unsigned char *)i;
     for (m = 0; m < sizeof (i); ++m)
