@@ -27,8 +27,12 @@ unsigned int sha256tsize(void);
 void sha256init(sha256_t *);
 void sha256update(sha256_t *, const unsigned char *, unsigned int);
 void sha256final(sha256_t *, unsigned char *); /* SHA256_SZ */
+typedef struct sha256k sha256k_t; /* an HMAC keyed: the key's two pads hashed once; its owner wipes it */
+unsigned int sha256ktsize(void);
+void sha256kinit(sha256k_t *, const unsigned char *k, unsigned int kl);
+void sha256khmac(const sha256k_t *, const unsigned char *d, unsigned int dl, unsigned char *h); /* SHA256_SZ */
 void sha256hmac(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *h); /* SHA256_SZ */
-void sha256hkdf(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *o, unsigned int ol); /* up to 255 * SHA256_SZ */
+void sha256hkdf(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *o, unsigned int ol); /* up to 255 * SHA256_SZ; o must not overlap d when ol > SHA256_SZ */
 void sha256hex(const unsigned char *, char *); /* SHA256_SZ, 2 * SHA256_SZ (not null-terminated) */
 
 #endif /* SHA256_H */

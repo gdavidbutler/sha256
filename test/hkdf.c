@@ -1,6 +1,7 @@
 /* RFC 5869 Appendix A HKDF-SHA-256 test vectors (Test Cases 1-3;
  * Cases 4-7 use SHA-1 and do not apply here) */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "sha256.h"
 
@@ -106,6 +107,103 @@ main(
     else
       printf("case %s: ok\n", t->name);
   }
+  /* the one-shot and the keyed form, one kinit then a khmac a message,
+   * each RFC 2104's computed here from the hash alone, at keys under,
+   * at and past the block; the one-shot and
+   * the keyed form writing over their own data under a key past the
+   * block; and a key past the block keyed as its hash, so no byte of it
+   * is left in the state */
+  {
+    static const unsigned int Kl[] = { 0, 1, 20, 64 - 1, 64, 64 + 1, 2 * 64 + 7 };
+    static const unsigned int Dl[] = { 0, 1, 55, 64, 200, 500 };
+    static unsigned char Kb[2 * 64 + 7];
+    static unsigned char Db[500];
+    static unsigned char Wb[500];
+    sha256_t *kc;
+    sha256k_t *kx;
+    sha256k_t *ky;
+    unsigned char kb[64];
+    unsigned char p[64];
+    unsigned char t[SHA256_SZ];
+    unsigned char u[SHA256_SZ];
+    unsigned int i;
+    unsigned int j;
+    unsigned int l;
+
+    for (i = 0; i < sizeof (Kb); ++i)
+      Kb[i] = (unsigned char)(i * 13 + 5);
+    for (i = 0; i < sizeof (Db); ++i)
+      Db[i] = (unsigned char)(i * 7 + 3);
+    kx = ky = 0;
+    if (!(kc = malloc(sha256tsize())) || !(kx = calloc(1, sha256ktsize())) || !(ky = calloc(1, sha256ktsize()))) {
+      fprintf(stderr, "FAIL: malloc(sha256tsize, sha256ktsize)\n");
+      free(kc);
+      free(kx);
+      return (1);
+    }
+    for (i = 0; i < sizeof (Kl) / sizeof (Kl[0]); ++i) {
+      memset(kb, 0, sizeof (kb));
+      if (Kl[i] > sizeof (kb)) {
+        sha256init(kc);
+        sha256update(kc, Kb, Kl[i]);
+        sha256final(kc, kb);
+      } else
+        memcpy(kb, Kb, Kl[i]);
+      sha256kinit(kx, Kb, Kl[i]);
+      for (j = 0; j < sizeof (Dl) / sizeof (Dl[0]); ++j) {
+        for (l = 0; l < sizeof (p); ++l)
+          p[l] = kb[l] ^ 0x36;
+        sha256init(kc);
+        sha256update(kc, p, sizeof (p));
+        sha256update(kc, Db, Dl[j]);
+        sha256final(kc, t);
+        for (l = 0; l < sizeof (p); ++l)
+          p[l] = kb[l] ^ 0x5c;
+        sha256init(kc);
+        sha256update(kc, p, sizeof (p));
+        sha256update(kc, t, SHA256_SZ);
+        sha256final(kc, t);
+        sha256hmac(Kb, Kl[i], Db, Dl[j], u);
+        if (memcmp(t, u, SHA256_SZ)) {
+          fprintf(stderr, "FAIL sha256hmac: key %u data %u not RFC 2104's\n", Kl[i], Dl[j]);
+          ++fail;
+        }
+        sha256khmac(kx, Db, Dl[j], u);
+        if (memcmp(t, u, SHA256_SZ)) {
+          fprintf(stderr, "FAIL sha256khmac: key %u data %u not RFC 2104's\n", Kl[i], Dl[j]);
+          ++fail;
+        }
+      }
+    }
+    sha256hmac(Kb, sizeof (Kb), Db, 100, u);
+    memcpy(Wb, Db, sizeof (Wb));
+    sha256hmac(Kb, sizeof (Kb), Wb, 100, Wb);
+    if (memcmp(Wb, u, SHA256_SZ)) {
+      fprintf(stderr, "FAIL sha256hmac: over its own data, a long key\n");
+      ++fail;
+    }
+    memcpy(Wb, Db, sizeof (Wb));
+    sha256kinit(kx, Kb, sizeof (Kb));
+    sha256khmac(kx, Wb, 100, Wb);
+    if (memcmp(Wb, u, SHA256_SZ)) {
+      fprintf(stderr, "FAIL sha256khmac: over its own data, a long key\n");
+      ++fail;
+    }
+    sha256init(kc);
+    sha256update(kc, Kb, sizeof (Kb));
+    sha256final(kc, t);
+    memset(kx, 0, sha256ktsize());
+    sha256kinit(kx, Kb, sizeof (Kb));
+    sha256kinit(ky, t, SHA256_SZ);
+    if (memcmp(kx, ky, sha256ktsize())) {
+      fprintf(stderr, "FAIL sha256kinit: a long key's bytes left in the state\n");
+      ++fail;
+    }
+    free(kc);
+    free(kx);
+    free(ky);
+  }
+
   printf("%s\n", fail ? "FAIL" : "PASS");
   return (fail);
 }

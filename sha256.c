@@ -28,6 +28,10 @@ struct sha256 {
  unsigned int l;       /* current short data */
  unsigned char d[64];  /* short data */
 };
+struct sha256k {
+ sha256_t i;           /* the inner pad hashed */
+ sha256_t o;           /* the outer pad hashed */
+};
 
 unsigned int
 sha256tsize(
@@ -58,6 +62,9 @@ sha256init(
 /* 3 don't needlessly copy in loop, size ~14% larger ~10% faster */
 /* 4 don't needlessly copy the start and end, size ~44% larger ~15% faster */
 #define SHA256_SPACETIME 4
+#endif
+#if SHA256_SPACETIME < 1 || SHA256_SPACETIME > 4
+#error SHA256_SPACETIME is 1, 2, 3 or 4
 #endif
 
 #if SHA256_SPACETIME == 1
@@ -143,6 +150,9 @@ sha256mix(
   };
   sha256_bt w[64];
   sha256_bt t[8];
+#if SHA256_SPACETIME == 1 || SHA256_SPACETIME == 2
+  sha256_bt t1, t2;
+#endif
   unsigned int i;
 
   for (i = 0; i < 16; ++i, d += 4)
@@ -172,8 +182,6 @@ sha256mix(
   G = s[6];
   H = s[7];
   for (i = 0; i < 64; ++i) {
-    sha256_bt t1, t2;
-
     t1 = H + S1(E) + CH(E,F,G) + k[i] + w[i];
     t2 = S0(A) + MJ(A,B,C);
     H = G;
@@ -349,6 +357,23 @@ sha256mix(
   s[0] += t[0] + S0(t[1]) + MJ(t[1], t[2], t[3]);
 
 #endif
+  /* wipe the block's words and the working state, a secret's when a
+   * key is hashed; volatile defeats dead-store elimination */
+  {
+    volatile sha256_bt *p;
+    unsigned int n;
+
+    for (p = w, n = 0; n < sizeof (w) / sizeof (w[0]); ++n)
+      *p++ = 0;
+    for (p = t, n = 0; n < sizeof (t) / sizeof (t[0]); ++n)
+      *p++ = 0;
+#if SHA256_SPACETIME == 1 || SHA256_SPACETIME == 2
+    p = &t1;
+    *p = 0;
+    p = &t2;
+    *p = 0;
+#endif
+  }
 }
 
 void
@@ -426,80 +451,25 @@ sha256final(
   }
 }
 
-void
-sha256hmac(
-  const unsigned char *k
- ,unsigned int kl
- ,const unsigned char *d
- ,unsigned int dl
- ,unsigned char *h
+unsigned int
+sha256ktsize(
+  void
 ){
-  sha256_t c;
-  unsigned char i[64];
-  unsigned char o[64];
-  unsigned int l;
-
-  if (kl > 64) {
-    sha256init(&c);
-    sha256update(&c, k, kl);
-    sha256final(&c, h);
-    k = h;
-    kl = SHA256_SZ;
-  }
-  for (l = 0; l < kl; ++l) {
-    i[l] = *(k + l) ^ 0x36;
-    o[l] = *(k + l) ^ 0x5c;
-  }
-  for (; l < 64; ++l) {
-    i[l] = 0x00 ^ 0x36;
-    o[l] = 0x00 ^ 0x5c;
-  }
-  sha256init(&c);
-  sha256update(&c, i, sizeof (i));
-  sha256update(&c, d, dl);
-  sha256final(&c, h);
-  sha256init(&c);
-  sha256update(&c, o, sizeof (o));
-  sha256update(&c, h, SHA256_SZ);
-  sha256final(&c, h);
-  /* wipe stack residue; volatile defeats dead-store elimination */
-  {
-    volatile unsigned char *p;
-    unsigned int n;
-
-    p = (volatile unsigned char *)&c;
-    for (n = 0; n < sizeof (c); ++n)
-      *p++ = 0;
-    p = (volatile unsigned char *)i;
-    for (n = 0; n < sizeof (i); ++n)
-      *p++ = 0;
-    p = (volatile unsigned char *)o;
-    for (n = 0; n < sizeof (o); ++n)
-      *p++ = 0;
-  }
+  return (sizeof (sha256k_t));
 }
 
 void
-sha256hkdf(
-  const unsigned char *k
+sha256kinit(
+  sha256k_t *x
+ ,const unsigned char *k
  ,unsigned int kl
- ,const unsigned char *d
- ,unsigned int dl
- ,unsigned char *s
- ,unsigned int sl
 ){
   sha256_t c;
-  sha256_t ci;
-  sha256_t co;
   unsigned char i[64];
   unsigned char o[64];
   unsigned char t[SHA256_SZ];
-  unsigned char t2[SHA256_SZ];
   unsigned int l;
-  unsigned int n;
 
-  if (sl > 255 * SHA256_SZ)
-    sl = 255 * SHA256_SZ;
   if (kl > 64) {
     sha256init(&c);
     sha256update(&c, k, kl);
@@ -515,22 +485,110 @@ sha256hkdf(
     i[l] = 0x00 ^ 0x36;
     o[l] = 0x00 ^ 0x5c;
   }
-  sha256init(&ci);
-  sha256update(&ci, i, sizeof (i));
-  sha256init(&co);
-  sha256update(&co, o, sizeof (o));
+  sha256init(&x->i);
+  sha256update(&x->i, i, sizeof (i));
+  sha256init(&x->o);
+  sha256update(&x->o, o, sizeof (o));
+  /* wipe stack residue; volatile defeats dead-store elimination */
+  {
+    volatile unsigned char *p;
+    unsigned int n;
+
+    p = (volatile unsigned char *)&c;
+    for (n = 0; n < sizeof (c); ++n)
+      *p++ = 0;
+    p = (volatile unsigned char *)i;
+    for (n = 0; n < sizeof (i); ++n)
+      *p++ = 0;
+    p = (volatile unsigned char *)o;
+    for (n = 0; n < sizeof (o); ++n)
+      *p++ = 0;
+    p = (volatile unsigned char *)t;
+    for (n = 0; n < sizeof (t); ++n)
+      *p++ = 0;
+  }
+}
+
+void
+sha256khmac(
+  const sha256k_t *x
+ ,const unsigned char *d
+ ,unsigned int dl
+ ,unsigned char *h
+){
+  sha256_t c;
+
+  c = x->i;
+  sha256update(&c, d, dl);
+  sha256final(&c, h);
+  c = x->o;
+  sha256update(&c, h, SHA256_SZ);
+  sha256final(&c, h);
+  /* wipe stack residue; volatile defeats dead-store elimination */
+  {
+    volatile unsigned char *p;
+    unsigned int n;
+
+    p = (volatile unsigned char *)&c;
+    for (n = 0; n < sizeof (c); ++n)
+      *p++ = 0;
+  }
+}
+
+void
+sha256hmac(
+  const unsigned char *k
+ ,unsigned int kl
+ ,const unsigned char *d
+ ,unsigned int dl
+ ,unsigned char *h
+){
+  sha256k_t x;
+
+  sha256kinit(&x, k, kl);
+  sha256khmac(&x, d, dl, h);
+  /* wipe stack residue; volatile defeats dead-store elimination */
+  {
+    volatile unsigned char *p;
+    unsigned int n;
+
+    p = (volatile unsigned char *)&x;
+    for (n = 0; n < sizeof (x); ++n)
+      *p++ = 0;
+  }
+}
+
+void
+sha256hkdf(
+  const unsigned char *k
+ ,unsigned int kl
+ ,const unsigned char *d
+ ,unsigned int dl
+ ,unsigned char *s
+ ,unsigned int sl
+){
+  sha256_t c;
+  sha256k_t x;
+  unsigned char t[SHA256_SZ];
+  unsigned char t2[SHA256_SZ];
+  unsigned int l;
+  unsigned int n;
+
+  if (sl > 255 * SHA256_SZ)
+    sl = 255 * SHA256_SZ;
+  sha256kinit(&x, k, kl);
   for (n = 0, l = 0; l < sl;) {
     unsigned char b;
     unsigned int j;
 
     b = (unsigned char)++n;
-    c = ci;
+    c = x.i;
     if (n > 1)
       sha256update(&c, t, SHA256_SZ);
     sha256update(&c, d, dl);
     sha256update(&c, &b, 1);
     sha256final(&c, t2);
-    c = co;
+    c = x.o;
     sha256update(&c, t2, SHA256_SZ);
     sha256final(&c, t);
     for (j = 0; j < SHA256_SZ && l < sl; ++j, ++l)
@@ -544,17 +602,8 @@ sha256hkdf(
     p = (volatile unsigned char *)&c;
     for (m = 0; m < sizeof (c); ++m)
       *p++ = 0;
-    p = (volatile unsigned char *)&ci;
-    for (m = 0; m < sizeof (ci); ++m)
-      *p++ = 0;
-    p = (volatile unsigned char *)&co;
-    for (m = 0; m < sizeof (co); ++m)
-      *p++ = 0;
-    p = (volatile unsigned char *)i;
-    for (m = 0; m < sizeof (i); ++m)
-      *p++ = 0;
-    p = (volatile unsigned char *)o;
-    for (m = 0; m < sizeof (o); ++m)
+    p = (volatile unsigned char *)&x;
+    for (m = 0; m < sizeof (x); ++m)
       *p++ = 0;
     p = (volatile unsigned char *)t;
     for (m = 0; m < sizeof (t); ++m)
